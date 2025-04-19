@@ -171,4 +171,54 @@ defmodule BinanceMock do
 
     {:reply, {:ok, result}, state}
   end
+
+  def handle_info(
+        %TradeEvent{} = trade_event,
+        %{order_books: order_books} = state
+      ) do
+    order_book =
+      Map.get(
+        order_books,
+        :"#{trade_event.symbol}",
+        %OrderBook{}
+      )
+
+    filled_buy_orders =
+      order_book.buy_side
+      |> Enum.take_while(&D.lt?(trade_event.price, &1.price))
+      |> Enum.map(&Map.replace!(&1, :status, "FILLED"))
+
+    filled_sell_orders =
+      order_book.sell_side
+      |> Enum.take_while(&D.gt?(trade_event.price, &1.price))
+      |> Enum.map(&Map.replace!(&1, :status, "FILLED"))
+
+    (filled_buy_orders ++ filled_sell_orders)
+    |> Enum.map(&convert_order_to_event(&1, trade_event.event_time))
+    |> Enum.each(&broadcast_trade_event/1)
+
+    remaining_buy_orders =
+      order_book.buy_side
+      |> Enum.drop(length(filled_buy_orders))
+
+    remaining_sell_orders =
+      order_book.sell_side
+      |> Enum.drop(length(filled_sell_orders))
+
+    order_books =
+      Map.replace!(
+        order_books,
+        :"#{trade_event.symbol}",
+        %{
+          buy_side: remaining_buy_orders,
+          sell_side: remaining_sell_orders,
+          historical:
+            filled_buy_orders ++
+              filled_sell_orders ++
+              order_book.historical
+        }
+      )
+
+    {:noreply, %{state | order_books: order_books}}
+  end
 end
