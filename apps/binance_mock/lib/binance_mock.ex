@@ -132,6 +132,16 @@ defmodule BinanceMock do
     })
   end
 
+  defp convert_order_to_order_response(%Binance.Order{} = order) do
+    %{
+      struct(
+        Binance.OrderResponse,
+        order |> Map.to_list()
+      )
+      | transact_time: order.time
+    }
+  end
+
   def get_order(symbol, time, order_id) do
     GenServer.call(
       __MODULE__,
