@@ -1,3 +1,14 @@
+defmodule State do
+  @enforce_keys [:symbol, :profit_interval, :tick_size]
+  defstruct [
+    :symbol,
+    :buy_order,
+    :sell_order,
+    :profit_interval,
+    :tick_size
+  ]
+end
+
 defmodule Naive.Trader do
   use GenServer
 
@@ -125,15 +136,4 @@ defmodule Naive.Trader do
       :normal
     )
   end
-end
-
-defmodule State do
-  @enforce_keys [:symbol, :profit_interval, :tick_size]
-  defstruct [
-    :symbol,
-    :buy_order,
-    :sell_order,
-    :profit_interval,
-    :tick_size
-  ]
 end
