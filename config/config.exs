@@ -12,6 +12,9 @@ import Config
 config :logger,
   level: :info
 
+config :naive,
+  binance_client: BinanceMock
+
 if File.exists?("config/secrets.exs") do
   import_config("secrets.exs")
 end
