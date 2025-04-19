@@ -1,15 +1,3 @@
-defmodule State do
-  defstruct symbol: nil,
-            settings: nil,
-            traders: []
-end
-
-defmodule TraderData do
-  defstruct pid: nil,
-            ref: nil,
-            state: nil
-end
-
 defmodule Naive.Leader do
   use GenServer
 
@@ -18,6 +6,18 @@ defmodule Naive.Leader do
   require Logger
 
   @binance_client Application.compile_env(:naive, :binance_client)
+
+  defmodule State do
+    defstruct symbol: nil,
+              settings: nil,
+              traders: []
+  end
+
+  defmodule TraderData do
+    defstruct pid: nil,
+              ref: nil,
+              state: nil
+  end
 
   def start_link(symbol) do
     GenServer.start_link(
