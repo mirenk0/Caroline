@@ -236,4 +236,12 @@ defmodule BinanceMock do
       buyer_market_maker: false
     }
   end
+
+  defp broadcast_trade_event(%Streamer.Binance.TradeEvent{} = trade_event) do
+    Phoenix.PubSub.broadcast(
+      Streamer.PubSub,
+      "TRADE_EVENTS:#{trade_event.symbol}",
+      trade_event
+    )
+  end
 end
