@@ -1,22 +1,23 @@
-defmodule State do
-  @enforce_keys [:symbol, :profit_interval, :tick_size]
-  defstruct [
-    :symbol,
-    :buy_order,
-    :sell_order,
-    :profit_interval,
-    :tick_size
-  ]
-end
-
 defmodule Naive.Trader do
   use GenServer, restart: :temporary
 
+  alias Decimal, as: D
+  alias Streamer.Binance.TradeEvent
+
   require Logger
 
-  alias Streamer.Binance.TradeEvent
-  alias Decimal, as: D
   @binance_client Application.compile_env(:naive, :binance_client)
+
+  defmodule State do
+    @enforce_keys [:symbol, :profit_interval, :tick_size]
+    defstruct [
+      :symbol,
+      :buy_order,
+      :sell_order,
+      :profit_interval,
+      :tick_size
+    ]
+  end
 
   def start_link(%State{} = state) do
     GenServer.start_link(__MODULE__, state)
@@ -25,7 +26,7 @@ defmodule Naive.Trader do
   def init(%State{symbol: symbol} = state) do
     symbol = String.upcase(symbol)
 
-    Logger.info("Initializing new trader for symbol(#{symbol})")
+    Logger.info("Initializing new trader for #{symbol}")
 
     Phoenix.PubSub.subscribe(
       Streamer.PubSub,
@@ -35,23 +36,16 @@ defmodule Naive.Trader do
     {:ok, state}
   end
 
-  defp fetch_tick_size(symbol) do
-    @binance_client.get_exchange_info()
-    |> elem(1)
-    |> Map.get(:symbols)
-    |> Enum.find(&(&1["symbol"] == symbol))
-    |> Map.get("filters")
-    |> Enum.find(&(&1["filterType"] == "PRICE_FILTER"))
-    |> Map.get("tickSize")
-  end
-
   def handle_info(
         %TradeEvent{price: price},
         %State{symbol: symbol, buy_order: nil} = state
       ) do
     quantity = "100"
 
-    Logger.info("Placing buy order (#{symbol}@#{price})")
+    Logger.info("Placing BUY order for #{symbol} @ #{price}, quantity: #{quantity}")
+
+    {:ok, %Binance.OrderResponse{} = order} =
+      @binance_client.order_limit_buy(symbol, quantity, price, "GTC")
 
     new_state = %{state | buy_order: order}
     Naive.Leader.notify(:trader_state_updated, new_state)
@@ -76,7 +70,10 @@ defmodule Naive.Trader do
       ) do
     sell_price = calculate_sell_price(buy_price, profit_interval, tick_size)
 
-    Logger.info("Buy order filled, placing sell order ...")
+    Logger.info(
+      "Buy order filled, placing SELL order for " <>
+        "#{symbol} @ #{sell_price}, quantity: #{quantity}"
+    )
 
     {:ok, %Binance.OrderResponse{} = order} =
       @binance_client.order_limit_sell(symbol, quantity, sell_price, "GTC")
@@ -108,7 +105,6 @@ defmodule Naive.Trader do
 
   defp calculate_sell_price(buy_price, profit_interval, tick_size) do
     fee = "1.001"
-
     original_price = D.mult(buy_price, fee)
 
     net_target_price =
