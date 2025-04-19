@@ -71,5 +71,104 @@ defmodule BinanceMock do
         subscriptions
     end
   end
-end
 
+  defp add_order(
+         %Binance.Order{symbol: symbol} = order,
+         order_books
+       ) do
+    order_book =
+      Map.get(
+        order_books,
+        :"#{symbol}",
+        %OrderBook{}
+      )
+
+    order_book =
+      if order.side == "SELL" do
+        Map.replace!(
+          order_book,
+          :sell_side,
+          [order | order_book.sell_side]
+          |> Enum.sort(&D.lt?(&1.price, &2.price))
+        )
+      else
+        Map.replace!(
+          order_book,
+          :buy_side,
+          [order | order_book.buy_side]
+          |> Enum.sort(&D.gt?(&1.price, &2.price))
+        )
+      end
+
+    Map.put(order_books, :"#{symbol}", order_book)
+  end
+
+  defp generate_fake_order(symbol, quantity, price, side)
+       when is_binary(symbol) and
+              is_binary(quantity) and
+              is_binary(price) and
+              (side == "BUY" or side == "SELL") do
+    current_timestamp = :os.system_time(:millisecond)
+    order_id = GenServer.call(__MODULE__, :generate_id)
+    client_order_id = :crypto.hash(:md5, "#{order_id}") |> Base.encode16()
+
+    Binance.Order.new(%{
+      symbol: symbol,
+      order_id: order_id,
+      client_order_id: client_order_id,
+      price: price,
+      orig_qty: quantity,
+      executed_qty: "0.00000000",
+      cummulative_quote_qty: "0.00000000",
+      status: "NEW",
+      time_in_force: "GTC",
+      type: "LIMIT",
+      side: side,
+      stop_price: "0.00000000",
+      iceberg_qty: "0.00000000",
+      time: current_timestamp,
+      update_time: current_timestamp,
+      is_working: true
+    })
+  end
+
+  def get_order(symbol, time, order_id) do
+    GenServer.call(
+      __MODULE__,
+      {:get_order, symbol, time, order_id}
+    )
+  end
+
+  def handle_call(
+        :generate_id,
+        _from,
+        %State{fake_order_id: id} = state
+      ) do
+    {:reply, id + 1, %{state | fake_order_id: id + 1}}
+  end
+
+  def handle_call(
+        {:get_order, symbol, time, order_id},
+        _from,
+        %State{order_books: order_books} = state
+      ) do
+    order_book =
+      Map.get(
+        order_books,
+        :"#{symbol}",
+        %OrderBook{}
+      )
+
+    result =
+      (order_book.buy_side ++
+         order_book.sell_side ++
+         order_book.historical)
+      |> Enum.find(
+        &(&1.symbol == symbol and
+            &1.time == time and
+            &1.order_id == order_id)
+      )
+
+    {:reply, {:ok, result}, state}
+  end
+end
