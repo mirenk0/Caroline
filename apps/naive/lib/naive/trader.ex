@@ -10,7 +10,7 @@ defmodule State do
 end
 
 defmodule Naive.Trader do
-  use GenServer
+  use GenServer, restart: :temporary
 
   require Logger
 
@@ -18,28 +18,21 @@ defmodule Naive.Trader do
   alias Decimal, as: D
   @binance_client Application.compile_env(:naive, :binance_client)
 
-  def start_link(%{} = args) do
-    GenServer.start_link(__MODULE__, args, name: :trader)
+  def start_link(%State{} = state) do
+    GenServer.start_link(__MODULE__, state)
   end
 
-  def init(%{symbol: symbol, profit_interval: profit_interval}) do
+  def init(%State{symbol: symbol} = state) do
     symbol = String.upcase(symbol)
 
-    Logger.info("Initializing new trader for #{symbol}")
-
-    tick_size = fetch_tick_size(symbol)
+    Logger.info("Initializing new trader for symbol(#{symbol})")
 
     Phoenix.PubSub.subscribe(
       Streamer.PubSub,
       "TRADE_EVENTS:#{symbol}"
     )
 
-    {:ok,
-     %State{
-       symbol: symbol,
-       profit_interval: profit_interval,
-       tick_size: tick_size
-     }}
+    {:ok, state}
   end
 
   defp fetch_tick_size(symbol) do
@@ -58,12 +51,11 @@ defmodule Naive.Trader do
       ) do
     quantity = "100"
 
-    Logger.info("Placing BUY order for #{symbol} @ #{price}, quantity: #{quantity}")
+    Logger.info("Placing buy order (#{symbol}@#{price})")
 
-    {:ok, %Binance.OrderResponse{} = order} =
-      @binance_client.order_limit_buy(symbol, quantity, price, "GTC")
-
-    {:noreply, %{state | buy_order: order}}
+    new_state = %{state | buy_order: order}
+    Naive.Leader.notify(:trader_state_updated, new_state)
+    {:noreply, new_state}
   end
 
   def handle_info(
@@ -84,15 +76,14 @@ defmodule Naive.Trader do
       ) do
     sell_price = calculate_sell_price(buy_price, profit_interval, tick_size)
 
-    Logger.info(
-      "Buy order filled, placing SELL order for " <>
-        "#{symbol} @ #{sell_price}), quantity: #{quantity}"
-    )
+    Logger.info("Buy order filled, placing sell order ...")
 
     {:ok, %Binance.OrderResponse{} = order} =
       @binance_client.order_limit_sell(symbol, quantity, sell_price, "GTC")
 
-    {:noreply, %{state | sell_order: order}}
+    new_state = %{state | sell_order: order}
+    Naive.Leader.notify(:trader_state_updated, new_state)
+    {:noreply, new_state}
   end
 
   def handle_info(
