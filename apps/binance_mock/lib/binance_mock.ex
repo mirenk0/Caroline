@@ -221,4 +221,19 @@ defmodule BinanceMock do
 
     {:noreply, %{state | order_books: order_books}}
   end
+
+  defp convert_order_to_event(%Binance.Order{} = order, time) do
+    %TradeEvent{
+      event_type: order.type,
+      event_time: time - 1,
+      symbol: order.symbol,
+      trade_id: Integer.floor_div(time, 1000),
+      price: order.price,
+      quantity: order.orig_qty,
+      buyer_order_id: order.order_id,
+      seller_order_id: order.order_id,
+      trade_time: time - 1,
+      buyer_market_maker: false
+    }
+  end
 end
