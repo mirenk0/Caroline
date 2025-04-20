@@ -52,6 +52,7 @@ defmodule Naive.Trader do
         } = state
       ) do
     price = calculate_buy_price(price, buy_down_interval, tick_size)
+
     quantity = "100"
 
     Logger.info("Placing BUY order for #{symbol} @ #{price}, quantity: #{quantity}")
