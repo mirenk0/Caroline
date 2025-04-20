@@ -161,6 +161,7 @@ defmodule Naive.Trader do
   end
 
   defp calculate_quantity(budget, price, step_size) do
+    # not necessarily legal quantity
     exact_target_quantity = D.div(budget, price)
 
     D.to_string(
@@ -172,3 +173,4 @@ defmodule Naive.Trader do
     )
   end
 end
+

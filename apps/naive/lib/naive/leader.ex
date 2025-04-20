@@ -126,7 +126,6 @@ defmodule Naive.Leader do
   end
 
   defp fetch_symbol_settings(symbol) do
-    # <= updated fetch_tick_size
     symbol_filters = fetch_symbol_filters(symbol)
 
     Map.merge(
@@ -143,7 +142,6 @@ defmodule Naive.Leader do
     )
   end
 
-  # <= updated fetch_tick_size
   defp fetch_symbol_filters(symbol) do
     symbol_filters =
       @binance_client.get_exchange_info()
