@@ -14,6 +14,8 @@ defmodule Naive.Trader do
       :budget,
       :buy_down_interval,
       :profit_interval,
+      :rebuy_interval,
+      :rebuy_notified,
       :tick_size,
       :step_size
     ]
@@ -24,6 +26,8 @@ defmodule Naive.Trader do
       :sell_order,
       :buy_down_interval,
       :profit_interval,
+      :rebuy_interval,
+      :rebuy_notified,
       :tick_size,
       :step_size
     ]
