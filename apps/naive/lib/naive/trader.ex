@@ -11,17 +11,21 @@ defmodule Naive.Trader do
   defmodule State do
     @enforce_keys [
       :symbol,
+      :budget,
       :buy_down_interval,
       :profit_interval,
-      :tick_size
+      :tick_size,
+      :step_size
     ]
     defstruct [
       :symbol,
+      :budget,
       :buy_order,
       :sell_order,
       :buy_down_interval,
       :profit_interval,
-      :tick_size
+      :tick_size,
+      :step_size
     ]
   end
 
